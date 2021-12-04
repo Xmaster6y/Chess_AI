@@ -56,8 +56,12 @@ class Board():
 		return array_board
 
 	def __str__(self):
-		return f"{self.board}"
-
+		s = "  " + "-"*32 + "\n"
+		for i in range(8):
+			s += f"{8-i} |" + "|".join(map(lambda s:s.ljust(3), self.board[7-i])) + "|\n"
+			s += "  " + "-"*32 + "\n"
+		s += "    " + " | ".join(["a","b", "c", "d", "e", "f", "g","h",])
+		return s
 	def plot(self):
 		array = self.convert_to_array()
 		plt.imshow(array, cmap='Greys')

@@ -7,7 +7,7 @@ import numpy as np
 
 class Player():
 
-	__init__(self, is_AI, color, policy, is_policy_trainable=False):
+	def __init__(self, is_AI, color, policy, is_policy_trainable=False):
 		self.is_AI = is_AI
 		self.color = color
 		self.policy = policy

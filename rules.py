@@ -19,7 +19,6 @@ UP = {"W":1, "B":-1}
 
 def possible_moves(board, color):
 	moves = []
-	check = is_check(board, color)
 	for i in range(8):
 		for j in range(8):
 			piece_color = board.board[i][j][0] #"_" will not be considered 
@@ -39,11 +38,7 @@ def possible_moves(board, color):
 					moves += _queen_possible_moves(board, color, (i,j))
 				else:
 					raise NotImplementedError
-	if moves:
-		mat = False
-	else:
-		mat = check
-	return moves, mat
+	return moves
 
 
 def is_check(board, color):
@@ -97,6 +92,8 @@ def _pawn_possible_moves(board, color, pos):
 		end_pos = ((pos[0]+up*base_move[0]), (pos[1]+up*base_move[1]))
 		if not in_board(end_pos):
 			continue
+		if (board.board[end_pos[0]][end_pos[1]][0] == color):
+			continue
 		if _pawn_valid_move(board, color, (pos,end_pos)):
 			move = (pos, end_pos)
 			moves.append(move)
@@ -110,7 +107,9 @@ def _bishop_possible_moves(board, color, pos):
 		if not in_board(end_pos):
 			continue
 		move = (pos, end_pos)
-		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
+		while in_board(end_pos):
+			if (board.board[end_pos[0]][end_pos[1]][0] == color):
+				break
 			if _bishop_valid_move(board, color, move):
 				moves.append(move)
 			if board.board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
@@ -130,7 +129,9 @@ def _rook_possible_moves(board, color, pos):
 		if not in_board(end_pos):
 			continue
 		move = (pos, end_pos)
-		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
+		while in_board(end_pos):
+			if (board.board[end_pos[0]][end_pos[1]][0] == color):
+				break
 			if _rook_valid_move(board, color, move):
 				moves.append(move)
 			if board.board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
@@ -148,6 +149,8 @@ def _king_possible_moves(board, color, pos):
 		end_pos = ((pos[0]+base_move[0]), (pos[1]+base_move[1]))
 		move = (pos, end_pos)
 		if not in_board(end_pos):
+			continue
+		if (board.board[end_pos[0]][end_pos[1]][0] == color):
 			continue	
 		if _king_valid_move(board, color, move):
 			moves.append(move)
@@ -161,7 +164,9 @@ def _queen_possible_moves(board, color, pos):
 		if not in_board(end_pos):
 			continue
 		move = (pos, end_pos)
-		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
+		while in_board(end_pos):
+			if (board.board[end_pos[0]][end_pos[1]][0] == color):
+				break
 			if _queen_valid_move(board, color, move):
 				moves.append(move)
 			if board.board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
@@ -180,6 +185,8 @@ def _knight_possible_moves(board, color, pos):
 		move = (pos, end_pos)
 		if not in_board(end_pos):
 			continue
+		if (board.board[end_pos[0]][end_pos[1]][0] == color):
+			continue
 		if _knight_valid_move(board, color, move):
 			moves.append(move)
 	return moves
@@ -194,47 +201,62 @@ def _pawn_threat(board, color, pos, pos_threat):#pos threatened
 	return False
 
 def _bishop_threat(board, color, pos, pos_threat):
+	inv_color = INVERSE_COLOR[color]
 	for base_move in BASE_MOVES["B"]:
 		scale = 1
 		end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
+		while in_board(end_pos):
+			if (board.board[end_pos[0]][end_pos[1]][0] == color):
+				break
 			if end_pos == pos_threat:
 				return True
+			if (board.board[end_pos[0]][end_pos[1]][0] == inv_color):
+				break
 			scale += 1
 			end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
 	return False
 
 def _rook_threat(board, color, pos, pos_threat):
+	inv_color = INVERSE_COLOR[color]
 	for base_move in BASE_MOVES["R"]:
 		scale = 1
 		end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
+		while in_board(end_pos):
+			if (board.board[end_pos[0]][end_pos[1]][0] == color):
+				break
 			if end_pos == pos_threat:
 				return True
+			if (board.board[end_pos[0]][end_pos[1]][0] == inv_color):
+				break
 			scale += 1
 			end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
 	return False
 
 def _king_threat(board, color, pos, pos_threat):
-	for base_move in BASE_MOVES["Ki"]:
+	for base_move in BASE_MOVES["Ki"][:-2]:#except rock moves
 		end_pos = ((pos[0]+base_move[0]), (pos[1]+base_move[1]))
 		if end_pos == pos_threat:
 			return True
 	return False
 
 def _queen_threat(board, color, pos, pos_threat):
+	inv_color = INVERSE_COLOR[color]
 	for base_move in BASE_MOVES["Q"]:
 		scale = 1
 		end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
+		while in_board(end_pos):
+			if (board.board[end_pos[0]][end_pos[1]][0] == color):
+				break
 			if end_pos == pos_threat:
 				return True
+			if (board.board[end_pos[0]][end_pos[1]][0] == inv_color):
+				break
 			scale += 1
 			end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
 	return False
 	
 def _knight_threat(board, color, pos, pos_threat):
-	for base_move in BASE_MOVES["Kn"]:
+	for base_move in BASE_MOVES["Kn"][:-2]:
 		end_pos = ((pos[0]+base_move[0]), (pos[1]+base_move[1]))
 		if end_pos == pos_threat:
 			return True
@@ -394,11 +416,11 @@ def apply_move(player, board, move):
 		pat = False
 		old_piece = _apply_move(board, move)
 	else:
-		pat = not bool(possible_moves(board, color))
+		pat = not bool(possible_moves(board, player.color))
 		mat = False
 		if pat:
 			legit = True
-			mat = bool(is_check(board, color))
+			mat = bool(is_check(board, player.color))
 			if mat:
 				pat = False
 		old_piece = "_"
@@ -422,37 +444,37 @@ if __name__ == '__main__':
 	pos = (4,4)
 	print("Pawn's moves:")
 	empty_board.board[pos[0]][pos[1]] = "WP"
-	moves, _  = possible_moves(empty_board, "W")
+	moves = possible_moves(empty_board, "W")
 	print(moves)
 	print(f"Total number of moves : {len(moves)}")
 	print("")
 	print("King's moves:")
 	empty_board.board[pos[0]][pos[1]] = "WKi"
-	moves, _  = possible_moves(empty_board, "W")
+	moves  = possible_moves(empty_board, "W")
 	print(moves)
 	print(f"Total number of moves : {len(moves)}")
 	print("")
 	print("Knight's moves:")
 	empty_board.board[pos[0]][pos[1]] = "WKn"
-	moves, _  = possible_moves(empty_board, "W")
+	moves = possible_moves(empty_board, "W")
 	print(moves)
 	print(f"Total number of moves : {len(moves)}")
 	print("")
 	print("Bishop's moves:")
 	empty_board.board[pos[0]][pos[1]] = "WB"
-	moves, _  = possible_moves(empty_board, "W")
+	moves = possible_moves(empty_board, "W")
 	print(moves)
 	print(f"Total number of moves : {len(moves)}")
 	print("")
 	print("Queen's moves:")
 	empty_board.board[pos[0]][pos[1]] = "WQ"
-	moves, _  = possible_moves(empty_board, "W")
+	moves = possible_moves(empty_board, "W")
 	print(moves)
 	print(f"Total number of moves : {len(moves)}")
 	print("")
 	print("Rook's moves:")
 	empty_board.board[pos[0]][pos[1]] = "WR"
-	moves, _ = possible_moves(empty_board, "W")
+	moves = possible_moves(empty_board, "W")
 	print(moves)
 	print(f"Total number of moves : {len(moves)}")
 	print("")
