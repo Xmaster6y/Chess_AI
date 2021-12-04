@@ -30,7 +30,7 @@ class Board():
 				"has_left_rook_move" : False,
 				"has_right_rook_move" : False,
 				"last_double_pawn" : (),
-			}
+			},
 			"B":{
 				"has_king_move" : False,
 				"has_left_rook_move" : False,

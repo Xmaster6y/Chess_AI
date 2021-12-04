@@ -5,7 +5,7 @@ Implementation of the rules.
 """
 import copy
 
-from board import Board
+from board_class import Board
 
 BASE_MOVES = {
 	"P":[(1,0),(2,0),(1,1),(1,-1)], "B":[(1,1), (-1,1), (1,-1), (-1,-1),], "R":[(0,1), (0,-1), (1,0), (-1,0),],
@@ -173,7 +173,7 @@ def _queen_possible_moves(board, color, pos):
 		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
 			if _queen_valid_move(board, color, move):
 				moves.append(move)
-			if board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
+			if board.board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
 				break
 			scale += 1
 			end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
