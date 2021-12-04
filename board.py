@@ -24,6 +24,23 @@ class Board():
 			["BP",]*8,
 			["BR", "BKn", "BB", "BQ", "BKi", "BB", "BKn", "BR"],
 		]
+		self.memory = {
+			"W":{
+				"has_king_move" : False
+				"has_left_rook_move" : False
+				"has_right_rook_move" : False
+				"last_double_pawn" : ()
+			}
+			"B":{
+				"has_king_move" : False
+				"has_left_rook_move" : False
+				"has_right_rook_move" : False
+				"last_double_pawn" : ()
+			}
+		}
+
+	def reset(self):
+		self.__init__()
 
 	def convert_to_array(self):
 		array_board = np.ones((8,8))*127.5

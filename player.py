@@ -9,12 +9,13 @@ import rules
 
 class Player():
 
-	__init__(self, is_AI, color):
+	__init__(self, is_AI, color, policy):
 		self.is_AI = is_AI
 		self.color = color
+		self.policy = policy
 
-	def choose_move(self, board_state, policy):
-		return policy(self, board_state)
+	def choose_move(self, board_state):
+		return slef.policy(self, board_state)
 
 def random_policy(player, board):
 	moves = rules.possible_moves(board, player.color)
