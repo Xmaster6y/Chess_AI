@@ -387,35 +387,22 @@ def _in_passing_valid(board, color, move):
 			return True
 	return False
 
-def apply_move(board, move):
-	raise NotImplementedError
-	piece = board.board[move[0][0]][move[0][1]]
-	old_piece = board.board[move[1][0]][move[1][1]]
-	if piece[1:] == "P":
-		delta_y = move[1][1]-move[0][1]
-		if (old_piece == "_") & (delta_y != 0):
-			up = UP[piece[0]]
-			board.board[move[1][0]-up][move[1][1]] = "_" #In passing capture
-		if _pawn_at_end(move[1], piece[0]):
-			board.board[move[1][0]][move[1][1]] = piece[0] + "Q"
-		else:
-			board.board[move[1][0]][move[1][1]] = piece
-	elif piece[1:] == "Ki":
-		delta_y = move[1][1]-move[0][1]
-		if abs(delta_y) == 2:
-			if delta_y < 0:
-				rook = board.board[move[0][0]][0]
-				board.board[move[0][0]][0] = "_"
-				board.board[move[0][0]][3] = rook
-			else:
-				rook = board.board[move[0][0]][7]
-				board.board[move[0][0]][7] = "_"
-				board.board[move[0][0]][5] = rook
-		board.board[move[1][0]][move[1][1]] = piece#Move the king anyway
+def apply_move(player, board, move):
+	legit = is_valid_move(player, board, move)
+	if legit:
+		mat = False
+		pat = False
+		old_piece = _apply_move(board, move)
 	else:
-		board.board[move[1][0]][move[1][1]] = piece
-	board.board[move[0][0]][move[0][1]] = "_"
-	return old_piece
+		pat = not bool(possible_moves(board, color))
+		mat = False
+		if pat:
+			legit = True
+			mat = bool(is_check(board, color))
+			if mat:
+				pat = False
+		old_piece = "_"
+	return legit, old_piece, mat, pat
 
 if __name__ == '__main__':
 	empty = [

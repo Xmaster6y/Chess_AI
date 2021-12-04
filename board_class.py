@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 class Board():
 	values = {
-		"P":1, "B":3, "Kn":3, "R":5, "Q":9, "Ki": 127.5
+		"_":0, "P":1, "B":3, "Kn":3, "R":5, "Q":9, "Ki": 127.5
 	}
 	value_scale = 10
 
@@ -38,6 +38,7 @@ class Board():
 				"last_double_pawn" : (),
 			}
 		}
+		self.turn = "W"
 
 	def reset(self):
 		self.__init__()

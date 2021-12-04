@@ -7,13 +7,14 @@ import numpy as np
 
 class Player():
 
-	__init__(self, is_AI, color, policy):
+	__init__(self, is_AI, color, policy, is_policy_trainable=False):
 		self.is_AI = is_AI
 		self.color = color
 		self.policy = policy
+		self.is_policy_trainable = is_policy_trainable
 
-	def choose_move(self, board_state):
-		return self.policy(self, board_state)
+	def choose_move(self, board):
+		return self.policy(self, board)
 
 
 if __name__ == '__main__':
