@@ -3,6 +3,9 @@
 """
 Implementation of the rules.
 """
+import copy
+
+from board import Board
 
 BASE_MOVES = {
 	"P":[(1,0),(2,0),(1,1),(1,-1)], "B":[(1,1), (-1,1), (1,-1), (-1,-1),], "R":[(0,1), (0,-1), (1,0), (-1,0),],
@@ -19,21 +22,21 @@ def possible_moves(board, color):
 	check = is_check(board, color)
 	for i in range(8):
 		for j in range(8):
-			piece_color = board[i][j][0] #"_" will not be considered 
+			piece_color = board.board[i][j][0] #"_" will not be considered 
 			if piece_color == color:
-				piece = board[i][j][1:]
+				piece = board.board[i][j][1:]
 				if piece == "P":
-					moves += _pawn_possible_move(board, color, (i,j))
+					moves += _pawn_possible_moves(board, color, (i,j))
 				elif piece == "B":
-					moves += _bishop_possible_move(board, color, (i,j))
+					moves += _bishop_possible_moves(board, color, (i,j))
 				elif piece == "R":
-					moves += _rook_possible_move(board, color, (i,j))
+					moves += _rook_possible_moves(board, color, (i,j))
 				elif piece == "Kn":
-					moves += _knight_possible_move(board, color, (i,j))
+					moves += _knight_possible_moves(board, color, (i,j))
 				elif piece == "Ki":
-					moves += _king_possible_move(board, color, (i,j))
+					moves += _king_possible_moves(board, color, (i,j))
 				elif piece == "Q":
-					moves += _queen_possible_move(board, color, (i,j))
+					moves += _queen_possible_moves(board, color, (i,j))
 				else:
 					raise NotImplementedError
 	if moves:
@@ -44,11 +47,11 @@ def possible_moves(board, color):
 
 
 def is_check(board, color):
-	king pos = ()
+	king_pos = ()
 	for i in range(8):
 		for j in range(8):
-			piece_color = board[i][j][0] #"_" will not be considered 
-			if (piece_color == color) & (board[i][j][1:] == "Ki"): #Hail the king
+			piece_color = board.board[i][j][0] #"_" will not be considered 
+			if (piece_color == color) & (board.board[i][j][1:] == "Ki"): #Hail the king
 				king_pos = (i,j)
 				break
 		if king_pos:
@@ -56,9 +59,9 @@ def is_check(board, color):
 	inv_color = INVERSE_COLOR[color]
 	for i in range(8):
 		for j in range(8):
-			piece_color = board[i][j][0] #"_" will not be considered 
+			piece_color = board.board[i][j][0] #"_" will not be considered 
 			if piece_color == inv_color:
-				piece = board[i][j][1:]
+				piece = board.board[i][j][1:]
 				if piece == "P":
 					if _pawn_threat(board, inv_color, (i,j), king_pos):
 						return True
@@ -92,9 +95,10 @@ def _pawn_possible_moves(board, color, pos):
 	moves = []
 	for base_move in BASE_MOVES["P"]:
 		end_pos = ((pos[0]+up*base_move[0]), (pos[1]+up*base_move[1]))
-		if !in_board(end_pos):
+		if not in_board(end_pos):
 			continue
 		if _pawn_valid_move(board, color, (pos,end_pos)):
+			move = (pos, end_pos)
 			moves.append(move)
 	return moves
 
@@ -103,17 +107,17 @@ def _bishop_possible_moves(board, color, pos):
 	for base_move in BASE_MOVES["B"]:
 		scale = 1
 		end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-		if !in_board(end_pos):
+		if not in_board(end_pos):
 			continue
 		move = (pos, end_pos)
-		while in_board(end_pos) & board[end_pos[0]][end_pos[1]][0] != color:
+		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
 			if _bishop_valid_move(board, color, move):
 				moves.append(move)
-			if board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
+			if board.board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
 				break
 			scale += 1
 			end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-			if !in_board(end_pos):
+			if not in_board(end_pos):
 				break
 			move = (pos, end_pos)
 	return moves
@@ -123,17 +127,17 @@ def _rook_possible_moves(board, color, pos):
 	for base_move in BASE_MOVES["R"]:
 		scale = 1
 		end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-		if !in_board(end_pos):
+		if not in_board(end_pos):
 			continue
 		move = (pos, end_pos)
-		while in_board(end_pos) & board[end_pos[0]][end_pos[1]][0] != color:
+		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
 			if _rook_valid_move(board, color, move):
 				moves.append(move)
-			if board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
+			if board.board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
 				break
 			scale += 1
 			end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-			if !in_board(end_pos):
+			if not in_board(end_pos):
 				break
 			move = (pos, end_pos)
 	return moves
@@ -143,17 +147,17 @@ def _king_possible_moves(board, color, pos):
 	for base_move in BASE_MOVES["Ki"]:
 		scale = 1
 		end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-		if !in_board(end_pos):
+		if not in_board(end_pos):
 			continue
 		move = (pos, end_pos)
-		while in_board(end_pos) & board[end_pos[0]][end_pos[1]][0] != color:
+		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
 			if _king_valid_move(board, color, move):
 				moves.append(move)
-			if board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
+			if board.board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
 				break
 			scale += 1
 			end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-			if !in_board(end_pos):
+			if not in_board(end_pos):
 				break
 			move = (pos, end_pos)
 	return moves
@@ -163,17 +167,17 @@ def _queen_possible_moves(board, color, pos):
 	for base_move in BASE_MOVES["Q"]:
 		scale = 1
 		end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-		if !in_board(end_pos):
+		if not in_board(end_pos):
 			continue
 		move = (pos, end_pos)
-		while in_board(end_pos) & board[end_pos[0]][end_pos[1]][0] != color:
+		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
 			if _queen_valid_move(board, color, move):
 				moves.append(move)
 			if board[end_pos[0]][end_pos[1]][0] == INVERSE_COLOR[color]:
 				break
 			scale += 1
 			end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-			if !in_board(end_pos):
+			if not in_board(end_pos):
 				break
 			move = (pos, end_pos)
 	return moves
@@ -182,7 +186,7 @@ def _knight_possible_moves(board, color, pos):
 	moves = []
 	for base_move in BASE_MOVES["Kn"]:
 		end_pos = ((pos[0]+base_move[0]), (pos[1]+base_move[1]))
-		if !in_board(end_pos):
+		if not in_board(end_pos):
 			continue
 		if _knight_valid_move(board, color, (pos,end_pos)):
 			moves.append(move)
@@ -201,7 +205,7 @@ def _bishop_threat(board, color, pos, pos_threat):
 	for base_move in BASE_MOVES["B"]:
 		scale = 1
 		end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-		while in_board(end_pos) & board[end_pos[0]][end_pos[1]][0] != color:
+		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
 			if end_pos == pos_threat:
 				return True
 			scale += 1
@@ -212,7 +216,7 @@ def _rook_threat(board, color, pos, pos_threat):
 	for base_move in BASE_MOVES["R"]:
 		scale = 1
 		end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-		while in_board(end_pos) & board[end_pos[0]][end_pos[1]][0] != color:
+		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
 			if end_pos == pos_threat:
 				return True
 			scale += 1
@@ -230,7 +234,7 @@ def _queen_threat(board, color, pos, pos_threat):
 	for base_move in BASE_MOVES["Q"]:
 		scale = 1
 		end_pos = ((pos[0]+scale*base_move[0]), (pos[1]+scale*base_move[1]))
-		while in_board(end_pos) & board[end_pos[0]][end_pos[1]][0] != color:
+		while in_board(end_pos) & (board.board[end_pos[0]][end_pos[1]][0] != color):
 			if end_pos == pos_threat:
 				return True
 			scale += 1
@@ -247,9 +251,9 @@ def _knight_threat(board, color, pos, pos_threat):
 
 def is_valid_move(player, board, move):
 	pos = move[0]
-	color = board[pos[0]][pos[1]][0]
+	color = board.board[pos[0]][pos[1]][0]
 	if color == player.color:
-		piece = board[pos[0]][pos[1]][1:]
+		piece = board.board[pos[0]][pos[1]][1:]
 		if piece == "P":
 			if move in _pawn_possible_moves(board, color, pos):
 				return True
@@ -278,68 +282,83 @@ def _pawn_valid_move(board, color, move):
 	up = UP[color]
 	if delta[1] == 0:
 		if delta[0] == 2*up:
-			if !_pawn_at_sart(move[0], color):
+			if not _pawn_at_start(move[0], color):
 				return False
 		for pos_x in range(move[0][0]+1,move[1][0]+1):
-			if board[pos_x][move[0][1]] != "_":
+			if board.board[pos_x][move[0][1]] != "_":
 				return False
-		return !_will_be_check(board, color, move)
+		return not _will_be_check(board, color, move)
 	else:
 		inv_color = INVERSE_COLOR[color]
-		if board[pos_x][move[0][1]][0] != inv_color:
+		if board.board[move[1][0]][move[1][1]][0] != inv_color:
 			return False
-		return !_will_be_check(board, color, move)
+		return not _will_be_check(board, color, move)
 
 
 def _bishop_valid_move(board, color, move):
-	return !_will_be_check(board, color, move)
+	return not _will_be_check(board, color, move)
 
 def _rook_valid_move(board, color, move):
-	return !_will_be_check(board, color, move)
+	return not _will_be_check(board, color, move)
 
 def _king_valid_move(board, color, move):
 	delta_y = move[1][1]-move[0][1]
 	if abs(delta_y) == 2:
+		sign = delta_y//2
 		if sign < 0:
 			rock_allowed = board.memory[color]["has_left_rook_move"] & board.memory[color]["has_king_move"]
 		else:
 			rock_allowed = board.memory[color]["has_right_rook_move"] & board.memory[color]["has_king_move"] 
-		if !rock_allowed:
+		if not rock_allowed:
 			return False
-		sign = delta_y//2
 		scale = 1
 		pos = (move[0][0], move[0][1]+sign)
-		while board[pos[0]][pos[1]] == "_":
+		while board.board[pos[0]][pos[1]] == "_":
 			scale += 1
 			pos = (move[0][0], move[0][1]+scale*sign)
-			if !in_board(pos):
+			if not in_board(pos):
 				return False
-		else:
-			if board[pos[0]][pos[1]] != color+"R":
-				return False
-			if (pos[1]-move[0][1]-1)/delta_y < 1:
-				return False
+		if board.board[pos[0]][pos[1]] != color+"R":
+			return False
 		inter_move = (move[0], (move[1][0],move[1][1]-sign))
-		return (!is_check(board, color))&(!_will_be_check(board, color, inter_move))&(!_will_be_check(board, color, move))	
-	return !_will_be_check(board, color, move)
+		return (not is_check(board, color))&(not _will_be_check(board, color, inter_move))&(not _will_be_check(board, color, move))	
+	return not _will_be_check(board, color, move)
 
 def _queen_valid_move(board, color, move):
-	return !_will_be_check(board, color, move)
+	return not _will_be_check(board, color, move)
 	
 def _knight_valid_move(board, color, move):
-	return !_will_be_check(board, color, move)
+	return not _will_be_check(board, color, move)
 
 def _apply_move(board, move):#Different from apply_move because here the move is assumed conform with displacement rules
-	piece = board[move[0][0]][move[0][1]]
-	old_piece = board[move[1][0]][move[1][1]]
-	board[move[1][0]][move[1][1]] = piece
-	board[move[0][0]][move[0][1]] = "_"
+	piece = board.board[move[0][0]][move[0][1]]
+	old_piece = board.board[move[1][0]][move[1][1]]
+	if piece[1:] == "P":
+		if _pawn_at_end(move[1], piece[0]):
+			board.board[move[1][0]][move[1][1]] = piece[0] + "Q"
+		else:
+			board.board[move[1][0]][move[1][1]] = piece
+	elif piece[1:] == "Ki":
+		delta_y = move[1][1]-move[0][1]
+		if abs(delta_y) == 2:
+			if delta_y < 0:
+				rook = board[move[0][0]][0]
+				board.board[move[0][0]][0] = "_"
+				board.board[move[0][0]][3] = rook
+			else:
+				rook = board.board[move[0][0]][7]
+				board.board[move[0][0]][7] = "_"
+				board.board[move[0][0]][5] = rook
+		board.board[move[1][0]][move[1][1]] = piece#Move the king anyway
+	else:
+		board.board[move[1][0]][move[1][1]] = piece
+	board.board[move[0][0]][move[0][1]] = "_"
 	return old_piece
 
 def _will_be_check(board, color, move):
-	_apply_move(board, move)
-	check = is_check(board, color)
-	_apply_move(board, move[::-1])
+	board_copy = copy.deepcopy(board)
+	_apply_move(board_copy, move)
+	check = is_check(board_copy, color)
 	return check
 
 def _pawn_at_start(pos, color):
@@ -349,17 +368,37 @@ def _pawn_at_start(pos, color):
 		return True
 	return False
 
+def _pawn_at_end(pos, color):
+	if (color == "W") & (pos[0] == 7):
+		return True
+	elif (color == "B") & (pos[0] == 0):
+		return True
+	return False
+
 if __name__ == '__main__':
-	empty_board = [
+	empty = [
 		["_",]*8,
 		["_",]*8,
 		["_",]*8,
-		["_",]*8
+		["_",]*8,
 		["_",]*8,
 		["_",]*8,
 		["_",]*8,
 		["_",]*8,
 	]
+	empty_board = Board
+	empty_board.board = empty
+
 	pos = (4,4)
-	empty_board[pos[0]][pos[1]] = "WP"
+	empty_board.board[pos[0]][pos[1]] = "WP"
+	print(possible_moves(empty_board, "W"))
+	empty_board.board[pos[0]][pos[1]] = "WKi"
+	print(possible_moves(empty_board, "W"))
+	empty_board.board[pos[0]][pos[1]] = "WKn"
+	print(possible_moves(empty_board, "W"))
+	empty_board.board[pos[0]][pos[1]] = "WB"
+	print(possible_moves(empty_board, "W"))
+	empty_board.board[pos[0]][pos[1]] = "WQ"
+	print(possible_moves(empty_board, "W"))
+	empty_board.board[pos[0]][pos[1]] = "WR"
 	print(possible_moves(empty_board, "W"))
