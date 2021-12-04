@@ -284,8 +284,10 @@ def _pawn_valid_move(board, color, move):
 		inv_color = INVERSE_COLOR[color]
 		if board.board[move[1][0]][move[1][1]][0] != inv_color:
 			if board.board[move[1][0]][move[1][1]][0] == "_":
-				if _in_passing(board, color, move):
+				if _in_passing_valid(board, color, move):
 					return not _will_be_check(board, color, move)
+				else:
+					return False
 			else:
 				return False
 		return not _will_be_check(board, color, move)
@@ -331,6 +333,10 @@ def _apply_move(board, move):#Different from apply_move because here the move is
 	piece = board.board[move[0][0]][move[0][1]]
 	old_piece = board.board[move[1][0]][move[1][1]]
 	if piece[1:] == "P":
+		delta_y = move[1][1]-move[0][1]
+		if (old_piece == "_") & (delta_y != 0):
+			up = UP[piece[0]]
+			board.board[move[1][0]-up][move[1][1]] = "_" #In passing capture
 		if _pawn_at_end(move[1], piece[0]):
 			board.board[move[1][0]][move[1][1]] = piece[0] + "Q"
 		else:
@@ -372,8 +378,14 @@ def _pawn_at_end(pos, color):
 		return True
 	return False
 
-def _in_passing(board, color, move):
-	pass
+def _in_passing_valid(board, color, move):
+	inv_color = INVERSE_COLOR[color]
+	pos_last_double = board.memory[inv_color]["last_double_pawn"]
+	if pos_last_double:
+		up = UP[color]
+		if pos_last_double == (move[1][0]-up, move[1][1]):
+			return True
+	return False
 
 if __name__ == '__main__':
 	empty = [
@@ -437,3 +449,17 @@ if __name__ == '__main__':
 	moves = _king_possible_moves(empty_board, "W", (0,4))
 	print(moves)
 	print(f"Total number of moves : {len(moves)}")
+	print("")
+
+	# In passing
+	print("Pawn's moves (In passing):")
+	empty_board.board[0][4] = "_"
+	empty_board.board[0][0] = "_"
+	empty_board.board[0][7] = "_"
+	empty_board.board[4][4] = "WP"
+	empty_board.board[4][5] = "BP"
+	empty_board.memory["B"]["last_double_pawn"] = (4,5)
+	moves = _pawn_possible_moves(empty_board, "W", (4,4))
+	print(moves)
+	print(f"Total number of moves : {len(moves)}")
+
