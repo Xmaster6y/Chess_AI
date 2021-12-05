@@ -6,7 +6,6 @@
 File containing an example of GAN training.
 """
 
-import gym
 import time
 import numpy as np
 import scipy.signal
@@ -21,149 +20,129 @@ import tensorflow.keras.losses as kls
 from tensorflow.keras.callbacks import TensorBoard
 
 # Initialize tensorboard object
-name = f'VPG_logs_{time.time()}'
-summary_writer = tf.summary.create_file_writer(logdir = f'logs/{name}/')
+#name = f'VPG_logs_{time.time()}'
+#summary_writer = tf.summary.create_file_writer(logdir = f'logs/{name}/')
 
 if __name__ == '__main__':
-    gamma = 0.99
+    gamma = 0.99 #discount
     p_lr = 0.01
     lam = 0.97
     epochs = 300
-    local_steps_per_epoch = 1000
+    max_steps_per_epoch = 1000
     render = False
     render_time = 100
+    train_policy_iterations = 1
+    reward_scale = 1000
 
-    # Initialize the environment
-    env = gym.make('CartPole-v0')
+    training_color = "W"
+    against_random = True
 
-    # Initialize Class variables
-    agent = Agent(env.action_space.n)
-    memory = Memory(local_steps_per_epoch)
-    temp_memory = Memory(local_steps_per_epoch)
+    if training_color == "W":
+        try:
+            model, ai_policy = policy.create_rl_policy(PLAYER1_FILE, True)
+        except:
+            print("AI not trained")
+            raise SystemExit
+        if against_random:
+            player2 = Player(True, "B", policy.random_policy)
+        else:
+            _, ai_policy2 = policy.create_rl_policy(PLAYER2_FILE)
+            player2 = Player(True, "B", policy2)
+        player1 = Player(True, "W", ai_policy, True)
+    else:
+        try:
+            model, ai_policy = policy.create_rl_policy(PLAYER2_FILE, True)
+        except:
+            print("AI not trained")
+            raise SystemExit
+        if against_random:
+            player1 = Player(True, "W", policy.random_policy)
+        else:
+            _, ai_policy1 = policy.create_rl_policy(PLAYER1_FILE)
+            player1 = Player(True, "W", ai_policy1)
+        player2 = Player(True, "B", ai_policy, True)
+    board = Board()
 
-    # Experience tuple variable to store the experience in a defined format
-    Experience = namedtuple('Experience', ['states','actions', 'rewards'])
-    temp_Experience = namedtuple('Experience', ['states','actions', 'rewards', 'values'])
 
-    # Initialize the policy and target network
-    policy_net = Model(len(env.observation_space.sample()), [64,64], env.action_space.n, 'policy_net')
-    value_net = Model(len(env.observation_space.sample()), [32], 0, 'value_net')
 
-    # Optimizers for the models
+    # Optimizers for the model
     optimizer_policy_net = tf.optimizers.Adam(p_lr)
-    optimizer_value_net = tf.optimizers.Adam(v_lr)
 
     # Main Loop
     for epoch in range(epochs):
         # Reset the environment and observe the state
-        state = env.reset()
+        board.reset()
         done = False
-        ep_rewards = []
+        rewards = []
+        memory = []
         returns = []
-        advantage = []
         log_probs = []
-        avg_rewards = []
 
-        for t in range(local_steps_per_epoch):
+        for t in range(max_steps_per_epoch):
 
-            # To render environment
             if render and t%render_time == 0:
-                env.render()
+                plot(board)
                 
             # Select action using current policy
-            action = agent.select_action(state, policy_net)
+            state = board.convert_to_array()
+            action = player1.choose_move(board) # deep player
+            init_pos = np.unravel_index(np.argmax(result[:,:,0]), (8,8))
+            end_pos = np.unravel_index(np.argmax(result[:,:,1]), (8,8))
+            move = (init_pos, end_pos)
 
-            # Find value of the state using the value function
-            value = tf.squeeze(value_net(np.atleast_2d(np.array(state.reshape(1,-1))).astype('float32')))
+            legit, piece_cap, be_mat, be_pat = apply_move(player1, board, move)
+            piece_cap_value = Board.values[piece_cap] * Board.value_scale
+            done = (not legit) | be_mat | be_pat
+            if done:
+                reward = reward_function(legit_move, be_mat, False, piece_cap_value, 0, be_pat, False)
 
-            # Take action and observe next_stae, reward and done signal
-            next_state, reward, done, _ = env.step(action.numpy()[0])
-            
-            # Critical Step
-            state = next_state
+            else:
+                move = player2.choose_move(board)
+                legit, piece_be_cap, mat, pat = apply_move(player2, board, move)
+                piece_be_cap_value = Board.values[piece_be_cap] * Board.value_scale
+                done = (not legit) | mat | pat
+                reward = reward_function(True, be_mat, mat, piece_cap_value, piece_be_cap_value, be_pat, pat)
 
             # Store the data in memory for policy update
-            memory.push(Experience(state, action, reward))
-
-            """
-            This variable is used for storing the data till the done signal is true. 
-            True done signal marks the end of one episode and since we are collecting 
-            multiple trajectories here, we need this variable to calculate the GAE update
-            Try to find a better approach here!
-            """
-            temp_memory.push(temp_Experience(state, action, reward, value))
-            ep_rewards.append(reward)
+            memory.append((state, action))
+            rewards.append(reward/reward_scale)
 
             if done or (t+1 == local_steps_per_epoch):
 
                 # Compute Rewards to Go
-                returns += list(memory.return_func(ep_rewards, gamma))
+                returns = np.zeros(t+1, dtype = 'float32')
+                for i in reversed(range(t+1)):
+                    returns[i] = rewards[i] + (gamma*returns[i+1] if i+1 < n else 0)
 
-                temp = temp_Experience(*zip(*temp_memory.memory))
+                temp = zip(*memory)
+                states, actions = np.asarray(temp[0]),np.asarray(temp[1])
+                total_reward = sum(ep_rewards)
+                break
 
-                """
-                This step is critical as in the last trajectory that we are collecting 
-                we are not waiting for the episdoe to be over, so we need to bootstrap 
-                for the value of the state
-                """
-                last_val = 0 if done else tf.squeeze(value_net(np.atleast_2d(np.array(state.reshape(1,-1)).astype('float32'))))
+        with tf.GradientTape() as policy_tape:
+            logits = tf.nn.log_softmax(model(np.atleast_2d(np.array(states)).astype('float32')))
 
-                temp_states, temp_actions, temp_rewards, temp_values = np.asarray(temp[0]),np.asarray(temp[1]),np.asarray(temp[2]),np.asarray(temp[3])
-                temp_values = np.append(temp_values, last_val)
-                
-                # Compute TD-target
-                delta = temp_rewards + gamma * temp_values[1:] - temp_values[:-1]
-                advantage += list(memory.advantage_func(delta, gamma*lam))
-                temp_memory.clear_memory()
-
-                avg_rewards.append(sum(ep_rewards))
-
-                # Reset environment to start another trajectory
-                state, done, ep_rewards = env.reset(), False, []
-
-        buf = Experience(*zip(*memory.memory))
-        states, actions, rewards = np.asarray(buf[0]),np.asarray(buf[1]),np.asarray(buf[2])
-        avg_rewards = np.mean(np.asarray(avg_rewards))
-
-        # This helps to stabilize the training of the model
-        advantage = normalize(advantage)
-
-        # Calculate the Policy and Value gradients for gradient descent
-        with tf.GradientTape() as policy_tape, tf.GradientTape() as value_tape:
-            logits = tf.nn.log_softmax(policy_net(np.atleast_2d(np.array(states)).astype('float32')))
-
-            """
-            Since we selected only one action out of the available ones, we need
-            to identify that action using one_hot encoding
-            """
-            one_hot_values = tf.squeeze(tf.one_hot(np.array(actions), env.action_space.n))
+            one_hot_values = tf.squeeze(tf.one_hot(np.array(actions), actions[0].size))
             log_probs = tf.math.reduce_sum(logits * one_hot_values, axis=1)
-            policy_loss = -tf.math.reduce_mean(advantage * log_probs)
-            value_loss = kls.MSE(returns,tf.squeeze(value_net(np.atleast_2d(np.array(states)).astype('float32'))))
+            policy_loss = -tf.math.reduce_mean(returns * log_probs)
 
-        policy_variables = policy_net.trainable_variables
-        value_variables = value_net.trainable_variables
+        policy_variables = model.trainable_variables
         policy_gradients = policy_tape.gradient(policy_loss, policy_variables)
-        value_gradients = value_tape.gradient(value_loss, value_variables)
 
         # Update the policy network weights using ADAM
         optimizer_policy_net.apply_gradients(zip(policy_gradients, policy_variables))
-        """
-        Since we know the actual rewards that we got, value loss is pretty high.
-        So we need to perform multiple iterations of gradient descent to achieve 
-        a good performance
-        """
-        for iteration in range(train_value_iterations):
-            optimizer_value_net.apply_gradients(zip(value_gradients, value_variables))
+
+        for iteration in range(train_policy_iterations):
+            optimizer_policy_net.apply_gradients(zip(policy_gradients, policy_variables))
         
         # Book-keeping
         with summary_writer.as_default():
             tf.summary.scalar('Episode_returns', sum(returns), step = epoch)
-            tf.summary.scalar('Running_avg_reward', avg_rewards, step = epoch)
+            tf.summary.scalar('Running_total_reward', total_rewards, step = epoch)
             tf.summary.scalar('Losses', policy_loss, step = epoch)
 
         if epoch%1 == 0:
-            print(f"Episode: {epoch} Losses: {policy_loss: 0.2f} Avg_reward: {avg_rewards: 0.2f}")
+            print(f"Episode: {epoch} Losses: {policy_loss: 0.2f} Avg_reward: {total_rewards: 0.2f}")
 
 
     # To render the environment after the training to check how the model performs.

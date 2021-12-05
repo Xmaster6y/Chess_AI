@@ -18,7 +18,7 @@ class CustomEnv(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self):
+    def __init__(self, player1, player2):
         super(CustomEnv, self).__init__()    
         self.action_space = spaces.Box(low=0, high=1, shape=
                         (8, 8, 2), dtype=np.uint8)   # Example for using image as input:
@@ -26,14 +26,16 @@ class CustomEnv(gym.Env):
         self.observation_space = spaces.Box(low=0, high=255, shape=
                         (8, 8, 1), dtype=np.uint8)
         self.board = Board()
-        self.turn = "W"
+        self.players = {"W":player1, "B":player2}
 
     def step(self, action):
-        self._take_action(action)  
-        self.current_step += 1  
-        
-        reward = policy.reward_function(legit_move, mat_next, piece_cap_value, piece_be_cap_value, pat)
-        done = (not legit) | mat_next | pat
+        init_pos = np.unravel_index(np.argmax(action[:,:,0]), (8,8))
+        end_pos = np.unravel_index(np.argmax(action[:,:,1]), (8,8))
+        move = (init_pos, end_pos)
+
+        legit, old_piece, mat, pat = rules.apply_move(self.players[board.turn], board, move)
+        reward = policy.reward_function(legit_move, mat, piece_cap_value, piece_be_cap_value, pat)
+        done = (not legit) | mat | pat
         obs = self.board.convert_to_array()
         return obs, reward, done, {}
 

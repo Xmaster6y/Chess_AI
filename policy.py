@@ -62,24 +62,34 @@ def create_rl_policy(path_file, is_policy_trainable=False):
         model = load_model(path_file)
     except OSError:
         model = create_model()
-    def rl_policy(player, board):
-        observation = board.convert_to_array()
-        if player.color == "B": #Always learn to do white moves
-            observation = 255 - observation
-        result = model(np.expand_dims(observation, axis=0))# Rescale is done in the model
-        init_pos = np.unravel_index(np.argmax(result[:,:,0]), (8,8))
-        end_pos = np.unravel_index(np.argmax(result[:,:,1]), (8,8))
-        return (init_pos, end_pos)
-    return rl_policy
+    model.trainable = is_policy_trainable
+    if is_policy_trainable:
+        def rl_policy(player, board):
+            observation = board.convert_to_array()
+            if player.color == "B": #Always learn to do white moves
+                observation = 255 - observation
+            action = model(np.expand_dims(observation, axis=0))# Rescale is done in the model
+            return action
+    else:
+        def rl_policy(player, board):
+            observation = board.convert_to_array()
+            if player.color == "B": #Always learn to do white moves
+                observation = 255 - observation
+            result = model(np.expand_dims(observation, axis=0))# Rescale is done in the model
+            init_pos = np.unravel_index(np.argmax(result[:,:,0]), (8,8))
+            end_pos = np.unravel_index(np.argmax(result[:,:,1]), (8,8))
+            return (init_pos, end_pos)
+    return model, rl_policy
 
-def reward_function(legit_move, mat_next, piece_cap_value, piece_be_cap_value, pat):
+def reward_function(legit_move, be_mat, mat, piece_cap_value, piece_be_cap_value, be_pat, pat):
     ##If not a legit move -> -1000
     ##If lost after -> -100
+    ##If win after -> 100
     ##If lost after -> -50
     ##Nothing -> 0
     ##Piece captured -> piece_value
     ##Piece being captured -> -piece_value
-    return -1000*(not legit_move) - 100*mat_next - 50*pat + piece_cap_value - piece_be_cap_value
+    return -1000*(not legit_move) - 100*be_mat + 100*mat - 50*be_pat + 50*pat + piece_cap_value - piece_be_cap_value
 
 
 
