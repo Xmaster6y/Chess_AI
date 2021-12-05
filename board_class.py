@@ -55,7 +55,7 @@ class Board():
 					color = piece[0]
 					value = type(self).values[piece[1:]] * type(self).value_scale
 					scaled_value = min(value,127.5)
-					array_board[i,j] += (1-2*(color=="B")) * scaled_value
+					array_board[i,j] += (1-2*(color=="W")) * scaled_value
 		return array_board
 
 	def __str__(self):
@@ -68,6 +68,9 @@ class Board():
 	def plot(self):
 		array = self.convert_to_array()
 		plt.imshow(array, cmap='Greys')
+		plt.xticks(np.arange(8), ["a","b", "c", "d", "e", "f", "g","h",])
+		plt.yticks(np.arange(8), np.arange(1,9))
+		plt.gca().invert_yaxis()
 		plt.show()
 
 			
