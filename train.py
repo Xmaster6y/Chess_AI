@@ -27,12 +27,9 @@ summary_writer = tf.summary.create_file_writer(logdir = f'logs/{name}/')
 if __name__ == '__main__':
     gamma = 0.99
     p_lr = 0.01
-    v_lr = 0.01
     lam = 0.97
-    train_value_iterations = 80
-    num_episodes = 1000
-    local_steps_per_epoch = 2000
     epochs = 300
+    local_steps_per_epoch = 1000
     render = False
     render_time = 100
 
