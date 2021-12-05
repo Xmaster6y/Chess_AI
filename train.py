@@ -41,8 +41,8 @@ def normalize(adv):
 
 if __name__ == '__main__':
     gamma = 0.99 #discount
-    p_lr = 0.01
-    v_lr = 0.01
+    p_lr = 0.04
+    v_lr = 0.06
     lam = 0.97
     epochs = 500
     train_value_iterations = 80
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     train_policy_iterations = 1
     reward_scale = 1000
 
-    training_color = "W"
+    training_color = "B"
     against_random = True
 
     if training_color == "W":
@@ -171,7 +171,7 @@ if __name__ == '__main__':
             #one_hot_values = tf.one_hot(np.array(actions), 64*64)
             log_probs = tf.math.reduce_sum(logits, axis=[1,2,3])
             policy_loss = -tf.math.reduce_mean(advantage * log_probs)
-            value_loss = -tf.math.reduce_mean(kls.MSE(returns,value_net(np.array(states).astype('float32'))))
+            value_loss = tf.math.reduce_mean(kls.MSE(returns,value_net(np.array(states).astype('float32'))))
 
         policy_variables = policy_net.trainable_variables
         value_variables = value_net.trainable_variables
@@ -231,9 +231,7 @@ Value Loss: {value_loss: 0.5e} Total_reward: {total_reward: 0.2e}")
                 if done:
                     break
     else:
-        print("Thankyou for using!")
-
-    env.close()
+        print("Thank you for using!")
 
 
 
