@@ -9,7 +9,7 @@ Policy implementation
 import numpy as np
 import random
 
-from keras.models import Sequential, Model, load_model
+from keras.models import Sequential, Model, load_model, save_model
 from keras.layers import BatchNormalization
 from keras.layers import Conv2D
 from keras.layers import Conv2DTranspose
@@ -25,6 +25,8 @@ from keras.layers import LocallyConnected2D
 from keras.utils.vis_utils import plot_model
 
 import rules
+
+PLAYER1_FILE = "deep_policies/player1"
 
 def random_policy(player, board):
     moves = rules.possible_moves(board, player.color)
@@ -146,10 +148,11 @@ if __name__ == '__main__':
     print(rand_move, bias_move)
     print(f"[INFO] network summary : ")
     policy.summary()
-    plot_model(policy, to_file='./model.svg', show_shapes=True,
+    save_model(policy, PLAYER1_FILE)
+    plot_model(policy, to_file='./model.pdf', show_shapes=True,
                show_dtype=False,
                show_layer_names=True,
-               rankdir="LR",
+               rankdir="UR",
                expand_nested=False,
                dpi=None,
                )
