@@ -57,11 +57,11 @@ def human_policy(player, board):
             print(f"{move_str}->{move} is an invalid move or format!")
     return move
 
-def create_rl_policy(path_file, is_policy_trainable=False):
+def create_rl_policy(path_file, is_policy_trainable=False, name="player"):
     try:
         model = load_model(path_file)
     except OSError:
-        model = create_model()
+        model = create_model(name=name)
     model.trainable = is_policy_trainable
     if is_policy_trainable:
         def rl_policy(player, board):
