@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+@author: Xmaster a.k.a. Yoann Poupart
 Environnement implementation
 """
+
 import gym
 from gym import spaces
 

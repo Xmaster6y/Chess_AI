@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+@author: Xmaster a.k.a. Yoann Poupart
 Class to setup the board
 """
+
 import numpy as np
 import matplotlib.pyplot as plt
 
