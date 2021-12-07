@@ -27,6 +27,7 @@ from keras.utils.vis_utils import plot_model
 import rules
 
 PLAYER1_FILE = "deep_policies/player1"
+VALUE_FILE = "deep_policies/value"
 
 def random_policy(player, board):
     moves = rules.possible_moves(board, player.color)
@@ -61,7 +62,7 @@ def create_rl_policy(path_file, is_policy_trainable=False, name="player"):
     try:
         model = load_model(path_file)
     except OSError:
-        model = create_model(name=name)
+        model = create_policy_network(name=name)
     model.trainable = is_policy_trainable
     if is_policy_trainable:
         def rl_policy(player, board):
@@ -93,8 +94,8 @@ def reward_function(legit_move, be_mat, mat, piece_cap_value, piece_be_cap_value
 
 
 
-def create_model(w_1=16, w_2=24, w_3=32, w_4=16, w_end=8, s_2=1, s_3=1, s_4=1, d_2=2, d_3=8, d_4=4, act="relu", 
-                            alpha=0.2, drop_rate=0.3, conv_drop_rate=0, batch_norm=True, name="player"):
+def create_policy_network(w_1=16, w_2=24, w_3=32, w_4=16, w_end=8, s_2=1, s_3=1, s_4=1, d_2=2, d_3=8, d_4=4, act="relu", 
+                            alpha=0.2, drop_rate=0.3, conv_drop_rate=0, batch_norm=True, name="player-policy"):
     model = Sequential(name=name)
     if batch_norm:
         model.add(BatchNormalization())
@@ -142,24 +143,107 @@ def create_model(w_1=16, w_2=24, w_3=32, w_4=16, w_end=8, s_2=1, s_3=1, s_4=1, d
     return model
 
 
+def create_value_network(w_1=16, w_2=24, w_3=32, w_4=16, w_end=8, s_2=1, s_3=1, s_4=1, d_2=4, d_3=8, d_4=4, act="relu", 
+                            alpha=0.2, drop_rate=0.3, conv_drop_rate=0, batch_norm=True, name="player-value"):
+    
+    s = Input(shape = (8,8)) 
+    if batch_norm:
+        s1 = Flatten()(BatchNormalization()(s))
+    else:
+        s1 = Flatten()(s)
+    if act == "relu":
+        s2 = Dense(w_1**2, activation='relu')(s1)
+    else:
+        s2 = LeakyReLU(alpha=alpha)(Dense(w1**2)(s1))  
+    s3 = Dropout(drop_rate)(s2)
+    s4 = Reshape((w_1, w_1, 1))(s3)
+
+    a = Input(shape = (8,8,2)) 
+    if batch_norm:
+        a1 = Flatten()(BatchNormalization()(a))
+    else:
+        a1 = Flatten()(a)
+    if act == "relu":
+        a2 = Dense(w_1**2, activation='relu')(a1)
+    else:
+        a2 = LeakyReLU(alpha=alpha)(Dense(w1**2)(a1))  
+    a3 = Dropout(drop_rate)(a2)
+    a4 = Reshape((w_1, w_1, 1))(a3)
+
+    merged = Concatenate(axis = -1)([s4,a4])
+
+    layer = Reshape((w_1, w_1, 2))(merged)
+    ker_size = w_2 - (w_1 - 1) * s_2
+    layer =Conv2DTranspose(d_2, (ker_size, ker_size))(layer)
+    if act == "relu":
+        layer = Activation("relu")(layer)
+    else:
+        layer = LeakyReLU(alpha=alpha)(layer)
+
+    ker_size = w_3 - (w_2 - 1) * s_3
+    layer = Conv2DTranspose(d_3, (ker_size, ker_size))(layer)
+    if act == "relu":
+        layer = Activation("relu")(layer)
+    else:
+        layer = LeakyReLU(alpha=alpha)(layer)
+    if batch_norm:
+        layer = BatchNormalization()(layer)
+    layer = Dropout(conv_drop_rate)(layer)
+
+    ker_size = w_3 - (w_4 - 1) * s_4
+    layer = Conv2D(d_4, (ker_size, ker_size))(layer)
+    if act == "relu":
+        layer = Activation("relu")(layer)
+    else:
+        layer = LeakyReLU(alpha=alpha)(layer)
+    if batch_norm:
+        layer = BatchNormalization()(layer)
+    layer = Dropout(conv_drop_rate)(layer)
+    layer = Flatten()(layer)
+
+    layer = Dense(1, activation="linear")(layer)
+    return Model(inputs = [s, a], outputs = layer, name=name)
+
+
+
+
+
 
 
 
 if __name__ == '__main__':
     print("[INFO] building network...")
-    policy = create_model()
+    policy = create_policy_network()
     print('[INFO] test...')
     noise = np.random.uniform(size=(1,8,8))
     zeros = np.zeros((1,8, 8))
-    rand_res = policy.predict(noise, verbose=1)
-    bias_res = policy.predict(zeros, verbose=1)
+    rand_res = policy(noise)
+    bias_res = policy.predict(zeros, verbose=True)
     rand_move = (np.unravel_index(np.argmax(rand_res[0,:,:,0]), (8,8)), np.unravel_index(np.argmax(rand_res[0,:,:,1]), (8,8)))
     bias_move = (np.unravel_index(np.argmax(bias_res[0,:,:,0]), (8,8)), np.unravel_index(np.argmax(bias_res[0,:,:,1]), (8,8)))
     print(rand_move, bias_move)
     print(f"[INFO] network summary : ")
     policy.summary()
     save_model(policy, PLAYER1_FILE)
-    plot_model(policy, to_file='./model.pdf', show_shapes=True,
+    plot_model(policy, to_file='./policy_network.pdf', show_shapes=True,
+               show_dtype=False,
+               show_layer_names=True,
+               rankdir="UR",
+               expand_nested=False,
+               dpi=None,
+               )
+    print("[INFO] building network...")
+    value = create_value_network()
+
+    print('[INFO] test...')
+    noise_s = np.random.uniform(size=(1,8,8))
+    noise_a = np.random.uniform(size=(1,8,8,2))
+    rand_res = value([noise_s,noise_a])
+    print(rand_res)
+    print(f"[INFO] network summary : ")
+    value.summary()
+    save_model(value, VALUE_FILE)
+    plot_model(value, to_file='./value_network.pdf', show_shapes=True,
                show_dtype=False,
                show_layer_names=True,
                rankdir="UR",

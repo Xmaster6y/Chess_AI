@@ -36,23 +36,24 @@ def normalize(adv):
     g_n = len(adv)
     mean = np.mean(adv)
     std = np.std(adv)
+    return (adv-mean)/(std+0.000001)
 
-    return (adv-mean)/std
 
 if __name__ == '__main__':
     gamma = 0.99 #discount
-    p_lr = 0.04
-    v_lr = 0.06
+    p_lr = 0.01
+    v_lr = 0.01
     lam = 0.97
-    epochs = 500
-    train_value_iterations = 80
+    epochs = 100
+    trajectories = 10
+    train_value_iterations = 10
     max_steps_per_epoch = 1000
     render = False
     render_time = 100
     train_policy_iterations = 1
     reward_scale = 1000
 
-    training_color = "B"
+    training_color = "W"
     against_random = True
 
     if training_color == "W":
@@ -85,16 +86,15 @@ if __name__ == '__main__':
     try:
         value_net = load_model(VALUE_FILE)
     except OSError:
-        value_net, _ = policy.create_rl_policy(VALUE_FILE, True)
-        value_net.layers.pop()
-        value_net.add(kl.Dense(1, activation = 'linear', name="laste_dense"))
+        value_net = policy.create_value_network()
 
     # Optimizers for the model
     optimizer_policy_net = tf.optimizers.Adam(p_lr)
     optimizer_value_net = tf.optimizers.Adam(v_lr)
 
     test_state = np.zeros((1,8,8))
-    value_net(test_state)
+    test_action = np.zeros((1,8,8,2))
+    value_net([test_state, test_action])
     policy_net(test_state)
 
     # Main Loop
@@ -106,52 +106,53 @@ if __name__ == '__main__':
         states = []
         actions = []
         values = []
-
-        if training_color == "B":
-            move = player2.choose_move(board)
-            legit, piece_be_cap, mat, pat = rules.apply_move(player2, board, move)
-
-        for t in range(max_steps_per_epoch):
-
-            if render and t%render_time == 0:
-                plot(board)
-                
-            # Select action using current policy
-            state = board.convert_to_array()
-            action = player1.choose_move(board) # deep player
-            value = value_net(np.expand_dims(state.astype('float32'), axis=0))
-
-            init_pos = np.unravel_index(np.argmax(action[:,:,0]), (8,8))
-            end_pos = np.unravel_index(np.argmax(action[:,:,1]), (8,8))
-            move = (init_pos, end_pos)
-
-            legit, piece_cap, be_mat, be_pat = rules.apply_move(player1, board, move)
-            piece_cap_value = Board.values[piece_cap] * Board.value_scale
-            done = (not legit) | be_mat | be_pat
-            if done:
-                reward = policy.reward_function(legit, be_mat, False, piece_cap_value, 0, be_pat, False)
-
-            else:
+        for trajectory in range(trajectories):
+            if training_color == "B":
                 move = player2.choose_move(board)
                 legit, piece_be_cap, mat, pat = rules.apply_move(player2, board, move)
-                piece_be_cap_value = Board.values[piece_be_cap] * Board.value_scale
-                done = (not legit) | mat | pat
-                reward = policy.reward_function(True, be_mat, mat, piece_cap_value, piece_be_cap_value, be_pat, pat)
 
-            # Store the data in memory for policy update
-            actions.append(action)
-            states.append(state)
-            rewards.append(reward/reward_scale)
-            values.append(value)
+            for t in range(max_steps_per_epoch):
+
+                if render and t%render_time == 0:
+                    plot(board)
+                    
+                # Select action using current policy
+                state = board.convert_to_array()
+                action = player1.choose_move(board) # deep player
+
+                value = value_net([np.expand_dims(state.astype('float32'), axis=0),action])
+
+                init_pos = np.unravel_index(np.argmax(action[:,:,0]), (8,8))
+                end_pos = np.unravel_index(np.argmax(action[:,:,1]), (8,8))
+                move = (init_pos, end_pos)
+
+                legit, piece_cap, be_mat, be_pat = rules.apply_move(player1, board, move)
+                piece_cap_value = Board.values[piece_cap] * Board.value_scale
+                done = (not legit) | be_mat | be_pat
+                if done:
+                    reward = policy.reward_function(legit, be_mat, False, piece_cap_value, 0, be_pat, False)
+
+                else:
+                    move = player2.choose_move(board)
+                    legit, piece_be_cap, mat, pat = rules.apply_move(player2, board, move)
+                    piece_be_cap_value = Board.values[piece_be_cap] * Board.value_scale
+                    done = (not legit) | mat | pat
+                    reward = policy.reward_function(True, be_mat, mat, piece_cap_value, piece_be_cap_value, be_pat, pat)
+
+                # Store the data in memory for policy update
+                actions.append(np.squeeze(action))
+                states.append(state)
+                rewards.append(reward/reward_scale)
+                values.append(value)
 
             if done or (t+1 == local_steps_per_epoch):
 
                 # Compute Rewards to Go
                 values.append(0)
-                rewards = np.array(rewards)
-                actions = np.array(actions)
-                states = np.array(states)
-                values = np.array(values)
+                rewards = np.array(rewards).astype('float32')
+                actions = np.array(actions).astype('float32')
+                states = np.array(states).astype('float32')
+                values = np.array(values).astype('float32')
 
                 returns = np.zeros(t+1, dtype = 'float32')
                 for i in reversed(range(t+1)):
@@ -167,11 +168,11 @@ if __name__ == '__main__':
                 break
 
         with tf.GradientTape() as policy_tape, tf.GradientTape() as value_tape:
-            logits = tf.nn.log_softmax(policy_net(np.array(states).astype('float32')))
+            #logits = tf.nn.log_softmax(policy_net(np.array(states).astype('float32')))
             #one_hot_values = tf.one_hot(np.array(actions), 64*64)
-            log_probs = tf.math.reduce_sum(logits, axis=[1,2,3])
-            policy_loss = -tf.math.reduce_mean(advantage * log_probs)
-            value_loss = tf.math.reduce_mean(kls.MSE(returns,value_net(np.array(states).astype('float32'))))
+            #log_probs = tf.math.reduce_sum(logits, axis=[1,2,3])
+            policy_loss = -tf.math.reduce_mean(value_net([np.array(states).astype('float32'),policy_net(np.array(states).astype('float32'))]))
+            value_loss = tf.math.reduce_mean(kls.MSE(rewards,value_net([np.array(states).astype('float32'),np.array(actions).astype('float32')])))
 
         policy_variables = policy_net.trainable_variables
         value_variables = value_net.trainable_variables
@@ -190,7 +191,7 @@ if __name__ == '__main__':
             tf.summary.scalar('Running_total_reward', total_reward, step = epoch)
             tf.summary.scalar('Losses', policy_loss, step = epoch)
 
-        if epoch%50 == 0:
+        if epoch%10 == 0:
             print(f"[INFO] Episode: {epoch} Policy Loss: {policy_loss: 0.5e} \
 Value Loss: {value_loss: 0.5e} Total_reward: {total_reward: 0.2e}")
 
@@ -206,11 +207,11 @@ Value Loss: {value_loss: 0.5e} Total_reward: {total_reward: 0.2e}")
         for i in range(n_render_iter):
             board.reset()
             while True:
-                print(board)
                 if training_color == "B":
                     move = player2.choose_move(board)
                     legit, piece_be_cap, mat, pat = rules.apply_move(player2, board, move)
                     print(f"Random move {move}")
+                print(board)
                 state = board.convert_to_array()
                 action = player1.choose_move(board) 
                 init_pos = np.unravel_index(np.argmax(action[:,:,0]), (8,8))
